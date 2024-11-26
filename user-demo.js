@@ -8,7 +8,31 @@ let id = 1
 
 //로그인
 app.post('/login', (req, res)=>{
+    const {userId, pwd} = req.body
+    let idFound = false
 
+    db.forEach(function(user){
+        if(user.userId === userId){
+            idFound = true
+            if(user.pwd === pwd){
+                res.status(200).json({
+                    message : "로그인에 성공했습니다."
+                })
+                return
+            } else {
+                res.status(400).json({
+                    message : "패스워드를 다시 확인해주세요."
+                })
+                return
+            }
+        }
+    })
+
+    if(!idFound){
+        res.status(400).json({
+            message : "아이디를 다시 확인해주세요."
+        })
+    }
 })
 
 //회원가입
