@@ -46,10 +46,11 @@ app
         let {id} = req.params
         id = parseInt(id)
         let channel = db.get(id)
-        let oldTitle = channel.channelTitle
-        let newTitle = req.body.channelTitle
 
         if(channel && newTitle){
+            let oldTitle = channel.channelTitle
+            let newTitle = req.body.channelTitle
+            
             channel.channelTitle = newTitle
             db.set(id, channel)
             res.status(200).json({
