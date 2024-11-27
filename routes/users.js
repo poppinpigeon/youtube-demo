@@ -1,13 +1,12 @@
 const express = require('express')
-const app = express()
-app.listen(3000)
-app.use(express.json()) //POST에서 사용
+const router = express.Router() //router.js의 라우터 연결
+router.use(express.json()) //POST에서 사용
 
 let db = new Map()
 let id = 1
 
 //로그인
-app.post('/login', (req, res)=>{
+router.post('/login', (req, res)=>{
     const {userId, pwd} = req.body
     let idFound = false
 
@@ -29,18 +28,19 @@ app.post('/login', (req, res)=>{
     })
 
     if(!idFound){
-        res.status(400).json({
+        res.status(404).json({
             message : "아이디를 다시 확인해주세요."
         })
     }
 })
 
 //회원가입
-app.post('/signup', (req, res)=>{
-    if(req.body.userId && req.body.pwd && req.body.name){
-        db.set(id++, req.body)
+router.post('/signup', (req, res)=>{
+    let user = req.body
+    if(user.userId && user.pwd && user.name){
+        db.set(user.userId, user)
         res.status(201).json({
-            message : `${db.get(id-1).name}님, 환영합니다!`
+            message : `${db.get(user.userId).name}님, 환영합니다!`
         })
     }else{
         res.status(400).json({
@@ -50,37 +50,37 @@ app.post('/signup', (req, res)=>{
 })
 
 //router 사용- 회원 개별 조회, 탈퇴
-app
-    .route('/users/:id')
+router
+    .route('/users')
     .get((req, res)=>{
-        let {id} = req.params
-        id = parseInt(id)
-    
-        const user = db.get(id)
-        if(user == undefined){
-            res.status(404).json({
-                message : "회원 정보가 없습니다."
-            })
-        }else{
+        let {userId} = req.body
+        const user = db.get(userId)
+
+        if(user){
             res.status(200).json({
                 userId : user.userId,
                 name : user.name
             })
-        }
-    })
-    .delete((req, res)=>{
-        let {id} = req.params
-        id = parseInt(id)
-    
-        const user = db.get(id)
-        if(user == undefined){
+        }else{
             res.status(404).json({
                 message : "회원 정보가 없습니다."
             })
-        }else{
-            db.delete(id)
+        }
+    })
+    .delete((req, res)=>{
+        let {userId} = req.body
+        const user = db.get(userId)
+
+        if(user){
+            db.delete(userId)
             res.status(200).json({
                 message : `${user.name}님, 다음에 또 뵙겠습니다.`
             })
+        }else{
+            res.status(404).json({
+                message : "회원 정보가 없습니다."
+            })
         }
     })
+
+module.exports = router
