@@ -37,10 +37,14 @@ router
             if(channels.length){
                 res.status(200).json(channels)
             } else {
-                channelNotFound()
+                res.status(404).json({
+                    message : "채널 정보를 찾을 수 없습니다."
+                })
             }
         } else {
-            channelNotFound()
+            res.status(404).json({
+                message : "채널 정보를 찾을 수 없습니다."
+            })
         }
     })
 
@@ -52,9 +56,9 @@ router
         id = parseInt(id)
         let channel = db.get(id)
 
+        let newTitle = req.body.channelTitle
         if(channel && newTitle){
             let oldTitle = channel.channelTitle
-            let newTitle = req.body.channelTitle
             
             channel.channelTitle = newTitle
             db.set(id, channel)
@@ -79,7 +83,9 @@ router
                 message : `${channelTitle}님의 채널이 삭제되었습니다.`
             })
         } else {
-            channelNotFound()
+            res.status(404).json({
+                message : "채널 정보를 찾을 수 없습니다."
+            })
         }
     })
     //채널 개별 조회
@@ -90,14 +96,10 @@ router
         if(db.get(id)){
             res.status(200).json(db.get(id))
         } else {
-            channelNotFound()
+            res.status(404).json({
+                message : "채널 정보를 찾을 수 없습니다."
+            })
         }
     })
-
-function channelNotFound(){
-    res.status(404).json({
-        message : "채널 정보를 찾을 수 없습니다."
-    })
-}
 
 module.exports = router
