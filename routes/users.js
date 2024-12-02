@@ -1,50 +1,56 @@
 const express = require('express')
-const router = express.Router() //router.js의 라우터 연결
-router.use(express.json()) //POST에서 사용
+const router = express.Router()
+const conn = require('../mariadb')
 
-let db = new Map()
-let id = 1
+router.use(express.json())
 
-//로그인
-router.post('/login', (req, res)=>{
-    const {userId, pwd} = req.body
-    let idFound = false
+router.post('/login', (req, res) => {
+    const { email, pwd } = req.body
 
-    db.forEach(function(user){
-        if(user.userId === userId){
-            idFound = true
-            if(user.pwd === pwd){
+    conn.connect(function (err) {
+        if (err) throw err
+
+        let sql = `SELECT * FROM users WHERE email = ?`
+        conn.query(sql, email, function (err, results) {
+            if (err) throw err
+
+            let loginUser = results[0]
+
+            if (loginUser && loginUser.pwd == pwd) {
                 res.status(200).json({
-                    message : "로그인에 성공했습니다."
+                    message: `${loginUser.name}님, 로그인에 성공했습니다.`
                 })
-                return
             } else {
-                res.status(400).json({
-                    message : "패스워드를 다시 확인해주세요."
+                res.status(404).json({
+                    message: '이메일 또는 비밀번호를 다시 입력해주세요.'
                 })
-                return
             }
-        }
-    })
-
-    if(!idFound){
-        res.status(404).json({
-            message : "아이디를 다시 확인해주세요."
         })
-    }
+    })
 })
 
-//회원가입
-router.post('/signup', (req, res)=>{
-    let user = req.body
-    if(user.userId && user.pwd && user.name){
-        db.set(user.userId, user)
-        res.status(201).json({
-            message : `${db.get(user.userId).name}님, 환영합니다!`
+router.post('/signup', (req, res) => {
+    let user = req.body //email, name, pwd, contact
+
+    if (user.email && user.name && user.pwd) {
+        const { email, name, pwd, contact } = req.body
+
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `INSERT INTO users (email, name, pwd, contact) VALUES (?, ?, ?, ?)`
+            let values = [email, name, pwd, contact]
+            conn.query(sql, values, function (err, results) {
+                if (err) throw err
+
+                res.status(201).json({
+                    message: `${name}님, 유튜브에 오신 것을 환영합니다!`
+                })
+            })
         })
-    }else{
+    } else {
         res.status(400).json({
-            message : "입력값을 다시 확인해주세요."
+            message: "입력값을 다시 확인해주세요."
         })
     }
 })
@@ -52,35 +58,40 @@ router.post('/signup', (req, res)=>{
 //router 사용- 회원 개별 조회, 탈퇴
 router
     .route('/users')
-    .get((req, res)=>{
-        let {userId} = req.body
-        const user = db.get(userId)
+    .get((req, res) => {
+        let { email } = req.body
 
-        if(user){
-            res.status(200).json({
-                userId : user.userId,
-                name : user.name
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `SELECT * FROM users WHERE email = ?`
+            conn.query(sql, email, function (err, results) {
+                if (err) throw err
+
+                if (results.length) {
+                    res.status(200).json(results)
+                } else {
+                    res.status(404).json({
+                        message: "회원 정보가 없습니다."
+                    })
+                }
             })
-        }else{
-            res.status(404).json({
-                message : "회원 정보가 없습니다."
-            })
-        }
+        })
     })
-    .delete((req, res)=>{
-        let {userId} = req.body
-        const user = db.get(userId)
+    .delete((req, res) => {
+        let { email } = req.body
 
-        if(user){
-            db.delete(userId)
-            res.status(200).json({
-                message : `${user.name}님, 다음에 또 뵙겠습니다.`
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `DELETE FROM users WHERE email = ?`
+            conn.query(sql, email, function (err, results) {
+                if (err) throw err
+                res.status(200).json({
+                    message: `${email}회원님, 다음에 또 뵙겠습니다.`
+                })
             })
-        }else{
-            res.status(404).json({
-                message : "회원 정보가 없습니다."
-            })
-        }
+        })
     })
 
 module.exports = router
