@@ -1,10 +1,26 @@
 const express = require('express')
 const router = express.Router()
 const conn = require('../mariadb')
+const {body, validationResult} = require('express-validator')
 
 router.use(express.json())
 
-router.post('/login', (req, res) => {
+const validate = (req, res, next) => {
+    const err = validationResult(req)
+    if(err.isEmpty()){
+        return next()
+    } else {
+        return res.status(400).json(err.array())
+    }
+}
+//로그인
+router.post('/login', 
+    [
+        body('email').notEmpty().isEmail().withMessage('validation error-email'),
+        body('pwd').notEmpty().isString().withMessage('validation error-pwd'),
+        validate
+    ],
+    (req, res) => {
     const { email, pwd } = req.body
 
     conn.connect(function (err) {
@@ -28,37 +44,42 @@ router.post('/login', (req, res) => {
         })
     })
 })
+//회원 가입
+router.post('/signup', 
+    [
+        body('email').notEmpty().isEmail().withMessage('validation error-email'),
+        body('name').notEmpty().isString().withMessage('validation error-name'),
+        body('pwd').notEmpty().isString().withMessage('validation error-pwd'),
+        body('contact').notEmpty().isString().withMessage('validation error-contact'),
+        validate
+    ],
+    (req, res) => {
+    const { email, name, pwd, contact } = req.body
 
-router.post('/signup', (req, res) => {
-    let user = req.body //email, name, pwd, contact
+    conn.connect(function (err) {
+        if (err) throw err
 
-    if (user.email && user.name && user.pwd) {
-        const { email, name, pwd, contact } = req.body
-
-        conn.connect(function (err) {
+        let sql = `INSERT INTO users (email, name, pwd, contact) VALUES (?, ?, ?, ?)`
+        let values = [email, name, pwd, contact]
+        conn.query(sql, values, function (err, results) {
             if (err) throw err
 
-            let sql = `INSERT INTO users (email, name, pwd, contact) VALUES (?, ?, ?, ?)`
-            let values = [email, name, pwd, contact]
-            conn.query(sql, values, function (err, results) {
-                if (err) throw err
-
-                res.status(201).json({
-                    message: `${name}님, 유튜브에 오신 것을 환영합니다!`
-                })
+            res.status(201).json({
+                message: `${name}님, 유튜브에 오신 것을 환영합니다!`
             })
         })
-    } else {
-        res.status(400).json({
-            message: "입력값을 다시 확인해주세요."
-        })
-    }
+    })
 })
 
-//router 사용- 회원 개별 조회, 탈퇴
 router
     .route('/users')
-    .get((req, res) => {
+    //회원 개별 조회
+    .get(
+        [
+            body('email').notEmpty().isEmail().withMessage('validation error-email'),
+            validate
+        ],
+        (req, res) => {
         let { email } = req.body
 
         conn.connect(function (err) {
@@ -78,7 +99,13 @@ router
             })
         })
     })
-    .delete((req, res) => {
+    //회원 개별 탈퇴
+    .delete(
+        [
+            body('email').notEmpty().isEmail().withMessage('validation error-email'),
+            validate
+        ],
+        (req, res) => {
         let { email } = req.body
 
         conn.connect(function (err) {

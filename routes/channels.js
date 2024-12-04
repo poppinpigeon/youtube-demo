@@ -1,105 +1,158 @@
 const express = require('express')
 const router = express.Router()
-router.use(express.json()) //POST에서 사용
+const conn = require('../mariadb')
+const {body, param, validationResult} = require('express-validator')
 
-let db = new Map()
-let id = 1
+router.use(express.json())
+
+const validate = (req, res, next) => {
+    const err = validationResult(req)
+    if(err.isEmpty()){
+        return next()
+    } else {
+        return res.status(400).json(err.array())
+    }
+}
 
 router
     .route('/')
     //채널 생성
-    .post((req, res)=>{
-        if(req.body.channelTitle && req.body.userId){
-            let channel = req.body
-            db.set(id++, channel)
+    .post(
+        [
+            body('userId').notEmpty().isInt().withMessage('validation error-userId'),
+            body('name').notEmpty().isString().withMessage('validation error-name'),
+            validate
+        ]
+        ,(req, res)=>{
 
-            res.status(201).json({
-                message : `${db.get(id-1).channelTitle}님, 채널을 응원합니다!`
+        const {name, userId} = req.body
+
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `INSERT INTO channels (name, user_id) VALUES (?, ?)`
+            let values = [name, userId]
+            conn.query(sql, values, function (err, results) {
+                if (err) throw err
+
+                res.status(201).json({
+                    message: `${name}님, 채널을 응원합니다!`
+                })
             })
-        } else {
-            res.status(400).json({
-                message : "입력값을 다시 확인해주세요."
-            })
-        }
+        })
     })
     //채널 전체 조회
-    .get((req, res)=>{
-        let {userId} = req.body
-        let channels = []
+    .get(
+        [
+            body('userId').notEmpty().isInt().withMessage('validation error-userId'),
+            validate
+        ]
+        ,(req, res)=>{
 
-        if(db.size > 0 && userId){
-            db.forEach(function(value, key){
-                if(value.userId === userId){
-                    channels.push(value)
+        let {userId} = req.body
+
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `SELECT * FROM channels WHERE user_id = ?`
+            conn.query(sql, userId, function (err, results) {
+                if (err) throw err
+                if(results.length){
+                    res.status(200).json(results)
+                } else {
+                    res.status(404).json({
+                        message : "채널 정보를 찾을 수 없습니다."
+                    })
                 }
             })
-            
-            if(channels.length){
-                res.status(200).json(channels)
-            } else {
-                res.status(404).json({
-                    message : "채널 정보를 찾을 수 없습니다."
-                })
-            }
-        } else {
-            res.status(404).json({
-                message : "채널 정보를 찾을 수 없습니다."
-            })
-        }
+        })
     })
 
 router
     .route('/:id')
     //채널 수정
-    .put((req, res)=>{
+    .put(
+        [
+            param('id').notEmpty().withMessage('validation error-id'),
+            body('name').notEmpty().isString().withMessage('validation error-name'),
+            validate
+        ]
+        ,(req, res)=>{
+
         let {id} = req.params
         id = parseInt(id)
-        let channel = db.get(id)
+        let {name} = req.body
 
-        let newTitle = req.body.channelTitle
-        if(channel && newTitle){
-            let oldTitle = channel.channelTitle
-            
-            channel.channelTitle = newTitle
-            db.set(id, channel)
-            res.status(200).json({
-                message : `${oldTitle}님, 채널명이 ${newTitle}로 수정되었습니다.`
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `UPDATE channels SET name = ? WHERE id = ?`
+            let values = [name, id]
+            conn.query(sql, values, function (err, results) {
+                if (err) throw err
+                if(results.affectedRows != 0){
+                    res.status(200).json(results)
+                } else {
+                    res.status(404).json({
+                        message : "채널 정보를 찾을 수 없습니다."
+                    })
+                }
             })
-        } else {
-            res.status(404).json({
-                message : "입력값을 다시 확인해주세요."
-            })
-        }
+        })
     })
     //채널 삭제
-    .delete((req, res)=>{
-        let {id} = req.params
-        id = parseInt(id)
-        
-        if(db.get(id)){
-            let channelTitle = db.get(id).channelTitle
-            db.delete(id)
-            res.status(200).json({
-                message : `${channelTitle}님의 채널이 삭제되었습니다.`
-            })
-        } else {
-            res.status(404).json({
-                message : "채널 정보를 찾을 수 없습니다."
-            })
-        }
-    })
-    //채널 개별 조회
-    .get((req, res)=>{
+    .delete(
+        [
+            param('id').notEmpty().withMessage('validation error-id'),
+            validate
+        ]
+        ,(req, res)=>{
+
         let {id} = req.params
         id = parseInt(id)
 
-        if(db.get(id)){
-            res.status(200).json(db.get(id))
-        } else {
-            res.status(404).json({
-                message : "채널 정보를 찾을 수 없습니다."
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `DELETE FROM channels WHERE id = ?`
+            conn.query(sql, id, function (err, results) {
+                if (err) throw err
+                if(results.affectedRows != 0){
+                    res.status(200).json(results)
+                } else {
+                    res.status(404).json({
+                        message : "채널 정보를 찾을 수 없습니다."
+                    })
+                }
             })
-        }
+        })
+    })
+    //채널 개별 조회
+    .get(
+        [
+            param('id').notEmpty().withMessage('validation error-id'),
+            validate
+        ]
+        ,(req, res)=>{
+        
+        let {id} = req.params
+        id = parseInt(id)
+
+        conn.connect(function (err) {
+            if (err) throw err
+
+            let sql = `SELECT * FROM channels WHERE id = ?`
+            conn.query(sql, id, function (err, results) {
+                if (err) throw err
+                if(results.length){
+                    res.status(200).json(results)
+                } else {
+                    res.status(404).json({
+                        message : "채널 정보를 찾을 수 없습니다."
+                    })
+                }
+            })
+        })
     })
 
 module.exports = router

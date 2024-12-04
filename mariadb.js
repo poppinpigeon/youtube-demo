@@ -7,6 +7,6 @@ const connection = mysql.createConnection({
   password: 'root',
   database: 'Youtube',
   dateStrings: true
-});
+})
 
 module.exports = connection
