@@ -2,6 +2,8 @@ const express = require('express')
 const router = express.Router()
 const conn = require('../mariadb')
 const {body, validationResult} = require('express-validator')
+const jwt = require('jsonwebtoken')
+const dotenv = require('dotenv').config({ path: './.env'})
 
 router.use(express.json())
 
@@ -33,11 +35,24 @@ router.post('/login',
             let loginUser = results[0]
 
             if (loginUser && loginUser.pwd == pwd) {
+                //token 발행
+                const token = jwt.sign({
+                    email : loginUser.email,
+                    name : loginUser.name
+                }, process.env.PRIVATE_KEY, {
+                    expiresIn : '30m',
+                    issuer : 'jade'
+                })
+
+                res.cookie("token", token, {
+                    httpOnly : true
+                })
+
                 res.status(200).json({
                     message: `${loginUser.name}님, 로그인에 성공했습니다.`
                 })
             } else {
-                res.status(404).json({
+                res.status(403).json({
                     message: '이메일 또는 비밀번호를 다시 입력해주세요.'
                 })
             }
